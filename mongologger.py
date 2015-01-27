@@ -1,6 +1,8 @@
 """
 https://gist.github.com/kesor/1589672
 """
+__version__ = '0.1'
+
 import logging
 import time
 import struct
