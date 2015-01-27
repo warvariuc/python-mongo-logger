@@ -1,5 +1,5 @@
 """
-https://gist.github.com/kesor/1589672
+Based on: https://gist.github.com/kesor/1589672
 """
 __version__ = '0.1'
 
@@ -7,7 +7,7 @@ import logging
 import time
 import struct
 
-from pymongo.connection import Connection
+from pymongo.mongo_client import MongoClient
 import bson
 from bson.errors import InvalidBSON
 
@@ -21,20 +21,18 @@ def create_logger():
     if not logger.isEnabledFor('info'):
         return
     # monkey-patch methods to record messages
-    Connection._send_message = _instrument(Connection._send_message)
-    Connection._send_message_with_response = _instrument(Connection._send_message_with_response)
+    MongoClient._send_message = _instrument(MongoClient._send_message)
+    MongoClient._send_message_with_response = _instrument(MongoClient._send_message_with_response)
 
 
 def _instrument(original_method):
 
     def instrumented_method(*args, **kwargs):
         message = decode_wire_protocol(args[1][1])
-        # if message['msg_id'] in self._used_msg_ids:
-        # return original_method(*args, **kwargs)
-        # self._used_msg_ids.append(message['msg_id'])
         start = time.time()
         result = original_method(*args, **kwargs)
-        logger.info('%.3f %s', message, time.time() - start)
+        logger.info('%.3f %s %s %s', time.time() - start, message['op'], message['collection'],
+                    message['query'])
         return result
 
     return instrumented_method
