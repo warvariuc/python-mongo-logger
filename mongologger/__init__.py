@@ -1,7 +1,7 @@
 """
 Based on: https://gist.github.com/kesor/1589672
 """
-__version__ = '0.1'
+from ._version import __version__
 
 import logging
 import time

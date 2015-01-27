@@ -7,7 +7,7 @@ import pip.req
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-VERSION_FILE_PATH = os.path.join(BASE_DIR, 'mongologger.py')
+VERSION_FILE_PATH = os.path.join(BASE_DIR, 'mongologger/_version.py')
 _version = imp.load_source('_version', VERSION_FILE_PATH)
 
 REQUIREMENTS_FILE_PATH = os.path.join(BASE_DIR, 'requirements.txt')
@@ -24,7 +24,7 @@ setuptools.setup(
         'Programming Language :: Python :: 2.7',
     ],
     platforms='any',
-    py_modules=['mongologger'],
+    packages=setuptools.find_packages(),
     include_package_data=True,  # use MANIFEST.in during install
     zip_safe=False,
     install_requires=requirements,
