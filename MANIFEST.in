@@ -1,5 +1,0 @@
-# here is the list of files to be included in *.tar.gz ditribution file
-# while package_data in setup.py specifies which files should be installed
-# using include_package_data=True in setup.py makes these files to be also installed
-include mongologger.py
-global-exclude *.pyc *.pyo
