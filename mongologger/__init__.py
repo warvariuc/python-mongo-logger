@@ -8,6 +8,8 @@ import time
 import struct
 import json
 import datetime
+import traceback
+import inspect
 
 from pymongo.mongo_client import MongoClient
 import bson
@@ -17,27 +19,59 @@ from bson.errors import InvalidBSON
 logger = logging.getLogger('mongologger')
 
 
-def create_logger():
+def create_logger(until_modules=('pymongo', 'mongoengine'), stack_size=3):
     """
+    
+    Args:
+        modules (list): list of top level module names until which the stack should be shown;
+          pass an empty sequence to show the whole stack
+        stack_size (int, None): how many frames before any of `modules` was entered to show; pass
+          None to show the whole stack
     """
     if not logger.isEnabledFor('info'):
         return
     # monkey-patch methods to record messages
-    MongoClient._send_message = _instrument(MongoClient._send_message)
-    MongoClient._send_message_with_response = _instrument(MongoClient._send_message_with_response)
+    MongoClient._send_message = _instrument(MongoClient._send_message, until_modules, stack_size)
+    MongoClient._send_message_with_response = _instrument(MongoClient._send_message_with_response,
+                                                          until_modules, stack_size)
 
 
-def _instrument(original_method):
+def _instrument(original_method, until_modules, stack_size):
 
     def instrumented_method(*args, **kwargs):
         message = decode_wire_protocol(args[1][1])
         start = time.time()
         result = original_method(*args, **kwargs)
-        logger.info('%.3f %s %s %s', time.time() - start, message['op'], message['collection'],
-                    json.dumps(message['query'], cls=JSONEncoder))
+        stack = '' if stack_size is None else '\n' + ''.join(get_stack(until_modules, stack_size))
+        logger.info('%.3f %s %s %s%s', time.time() - start, message['op'], message['collection'],
+                    json.dumps(message['query'], cls=JSONEncoder), stack)
         return result
 
     return instrumented_method
+
+
+def get_stack(until_modules, stack_size):
+    """
+    """
+    frames = inspect.stack()
+    frame_index = None
+    for i, (frame, _, _, _, _, _) in enumerate(frames):
+        module_name, _, _ = frame.f_globals['__name__'].partition('.')
+        if module_name in until_modules:
+            frame_index = i
+        elif frame_index is not None:
+            # found first frame before the needed module frame was entered
+            break
+        
+    if frame_index is not None:
+        del frames[:frame_index + 1]
+        if stack_size:
+            del frames[stack_size:]
+
+    stack = [(filename, lineno, name, lines[0])
+             for frame, filename, lineno, name, lines, _ in frames]
+
+    return traceback.format_list(stack)
 
 
 MONGO_OPS = {
