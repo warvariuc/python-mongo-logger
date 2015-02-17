@@ -26,7 +26,7 @@ def create_logger(until_modules=('pymongo', 'mongoengine'), stack_size=3):
         modules (list): list of top level module names until which the stack should be shown;
           pass an empty sequence to show the whole stack
         stack_size (int, None): how many frames before any of `modules` was entered to show; pass
-          None to show the whole stack
+          0 to show the whole stack or None to show no stack
     """
     if not logger.isEnabledFor('info'):
         return
@@ -39,12 +39,16 @@ def create_logger(until_modules=('pymongo', 'mongoengine'), stack_size=3):
 def _instrument(original_method, until_modules, stack_size):
 
     def instrumented_method(*args, **kwargs):
-        message = decode_wire_protocol(args[1][1])
-        start = time.time()
+        start_time = time.time()
         result = original_method(*args, **kwargs)
-        stack = '' if stack_size is None else '\n' + ''.join(get_stack(until_modules, stack_size))
-        logger.info('%.3f %s %s %s%s', time.time() - start, message['op'], message['collection'],
-                    json.dumps(message['query'], cls=JSONEncoder), stack)
+        duration = time.time() - start_time
+        try:
+            message = decode_wire_protocol(args[1][1])
+            stack = '' if stack_size is None else '\n' + ''.join(get_stack(until_modules, stack_size))
+            logger.info('%.3f %s %s %s%s', duration, message['op'], message['collection'],
+                        json.dumps(message['query'], cls=JSONEncoder), stack)
+        except Exception as exc:
+            logger.info('%.3f *** Failed to log the query *** %s', duration, exc)
         return result
 
     return instrumented_method
