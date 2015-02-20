@@ -20,13 +20,12 @@ logger = logging.getLogger('mongologger')
 
 
 def create_logger(until_modules=('pymongo', 'mongoengine'), stack_size=3):
-    """
-    
+    """Create and activate the Mongo-Logger.
     Args:
         modules (list): list of top level module names until which the stack should be shown;
           pass an empty sequence to show the whole stack
-        stack_size (int, None): how many frames before any of `modules` was entered to show; pass
-          0 to show the whole stack or None to show no stack
+        stack_size (int): how many frames before any of `modules` was entered to show; pass
+          -1 to show the whole stack or 0 to show no stack
     """
     if not logger.isEnabledFor('info'):
         return
@@ -34,17 +33,19 @@ def create_logger(until_modules=('pymongo', 'mongoengine'), stack_size=3):
     MongoClient._send_message = _instrument(MongoClient._send_message, until_modules, stack_size)
     MongoClient._send_message_with_response = _instrument(MongoClient._send_message_with_response,
                                                           until_modules, stack_size)
+    return logger
 
 
 def _instrument(original_method, until_modules, stack_size):
-
+    """Monkey-patch the given pymongo function which sends queries to MongoDB.
+    """
     def instrumented_method(*args, **kwargs):
         start_time = time.time()
         result = original_method(*args, **kwargs)
         duration = time.time() - start_time
         try:
             message = decode_wire_protocol(args[1][1])
-            stack = '' if stack_size is None else '\n' + ''.join(get_stack(until_modules, stack_size))
+            stack = ('\n' + ''.join(get_stack(until_modules, stack_size))).rstrip()
             logger.info('%.3f %s %s %s%s', duration, message['op'], message['collection'],
                         json.dumps(message['query'], cls=JSONEncoder), stack)
         except Exception as exc:
@@ -57,7 +58,7 @@ def _instrument(original_method, until_modules, stack_size):
 def get_stack(until_modules, stack_size):
     """
     """
-    frames = inspect.stack()
+    frames = inspect.stack()[2:]
     frame_index = None
     for i, (frame, _, _, _, _, _) in enumerate(frames):
         module_name, _, _ = frame.f_globals['__name__'].partition('.')
@@ -69,7 +70,7 @@ def get_stack(until_modules, stack_size):
         
     if frame_index is not None:
         del frames[:frame_index + 1]
-        if stack_size:
+        if stack_size >= 0:
             del frames[stack_size:]
 
     stack = [(filename, lineno, name, lines[0])

@@ -5,10 +5,10 @@ This module creates a logger ``mongologger`` which once enabled logs all queries
 
 .. code-block:: python
 
-    LOGGING['loggers']['mongologger'] = {
+    import mongologger
+    mongo_log = mongologger.create_logger(stack_size=0)  # show no call stack
+    LOGGING['loggers'][mongo_log.name] = {
         'level': 'INFO',
         'handlers': ['console'],
         'propagate': False,
     }
-    import mongologger
-    mongologger.create_logger()
