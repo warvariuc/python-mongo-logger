@@ -4,6 +4,7 @@ import imp
 
 import setuptools
 import pip.req
+import pip.download
 
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -11,7 +12,10 @@ VERSION_FILE_PATH = os.path.join(BASE_DIR, 'mongologger/_version.py')
 _version = imp.load_source('_version', VERSION_FILE_PATH)
 
 REQUIREMENTS_FILE_PATH = os.path.join(BASE_DIR, 'requirements.txt')
-requirements = [str(ir.req) for ir in pip.req.parse_requirements(REQUIREMENTS_FILE_PATH)]
+requirements = [
+    str(ir.req)
+    for ir in pip.req.parse_requirements(REQUIREMENTS_FILE_PATH, session=pip.download.PipSession())
+]
 
 setuptools.setup(
     name='mongologger',
