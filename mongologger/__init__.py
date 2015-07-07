@@ -6,14 +6,13 @@ from ._version import __version__
 import logging
 import time
 import struct
-import json
-import datetime
 import traceback
 import inspect
 
 from pymongo.mongo_client import MongoClient
 import bson
 from bson.errors import InvalidBSON
+from bson import json_util
 
 
 logger = logging.getLogger('mongologger')
@@ -47,7 +46,7 @@ def _instrument(original_method, until_modules, stack_size):
             message = decode_wire_protocol(args[1][1])
             stack = ('\n' + ''.join(get_stack(until_modules, stack_size))).rstrip()
             logger.info('%.3f %s %s %s%s', duration, message['op'], message['collection'],
-                        json.dumps(message['query'], cls=JSONEncoder), stack)
+                        json_util.dumps(message['query']), stack)
         except Exception as exc:
             logger.info('%.3f *** Failed to log the query *** %s', duration, exc)
         return result
@@ -108,13 +107,3 @@ def decode_wire_protocol(message):
         'op': op, 'collection': collection_name, 'msg_id': msg_id, 'skip': skip, 'limit': limit,
         'query': msg,
     }
-
-
-class JSONEncoder(json.JSONEncoder):
-
-    def default(self, o):
-        if isinstance(o, (datetime.datetime, datetime.time)):
-            return o.isoformat()
-        elif isinstance(o, bson.ObjectId):
-            return str(o)
-        return super(JSONEncoder, self).default(o)
